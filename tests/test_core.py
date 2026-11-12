@@ -110,6 +110,7 @@ class Cycles(unittest.TestCase):
         assert cycle is not None
         self.assertEqual(verify_cycle(nodes, edges, cycle), [])
         self.assertEqual(set(cycle), {"a", "b", "c"})
+        self.assertEqual(cycle, ("b", "c", "a"))  # exact rotation printed in README
 
     def test_toposort_raises_with_witness(self) -> None:
         with self.assertRaises(CycleError) as ctx:
@@ -156,7 +157,7 @@ class Cycles(unittest.TestCase):
         edges = [(0, 1), (1, 2), (2, 3), (3, 4), (4, 0), (0, 2)]
         cycle = find_cycle(nodes, edges)
         self.assertEqual(len(cycle), 4)
-        self.assertEqual(set(cycle), {0, 2, 3, 4})
+        self.assertEqual(cycle, (2, 3, 4, 0))  # exact rotation printed in README
         self.assertNotIn(1, cycle)
         assert_chordless(self, edges, cycle)
         self.assertEqual(verify_cycle(nodes, edges, cycle), [])
@@ -203,7 +204,7 @@ class CLI(unittest.TestCase):
         self.assertEqual(proc.returncode, 3)
         payload = json.loads(proc.stdout)
         self.assertIsNone(payload["order"])
-        self.assertEqual(set(payload["cycle"]), {"a", "b"})
+        self.assertEqual(payload["cycle"], ["b", "a"])  # exact order printed in README
 
     def test_bad_json_exit_two(self) -> None:
         self.assertEqual(self.run_cli("{oops").returncode, 2)

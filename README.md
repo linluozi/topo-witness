@@ -11,7 +11,7 @@ Build systems, migrations and schedulers need two things from a cycle: which nod
 ```
 graph: 0 -> 1 -> 2 -> 3 -> 4 -> 0, plus 0 -> 2
 naive: 0 -> 1 -> 2 -> 3 -> 4 -> 0   (contains the 0 -> 2 shortcut)
-ours:  0 -> 2 -> 3 -> 4             (no chord; node 1 is not needed)
+ours:  2 -> 3 -> 4 -> 0             (no chord; node 1 is not needed)
 ```
 
 ## Install
@@ -34,7 +34,7 @@ order, cycle = toposort_or_cycle(
     ["a", "b", "c", "d"],
     [("a", "b"), ("b", "c"), ("c", "a"), ("c", "d")],
 )
-print(order, cycle)          # None ('a', 'b', 'c')
+print(order, cycle)          # None ('b', 'c', 'a')
 print(verify_cycle(["a", "b", "c", "d"], [("a", "b"), ("b", "c"), ("c", "a")], cycle))
 # []  -> the witness is valid and chordless
 
@@ -44,7 +44,7 @@ except CycleError as exc:
     print(exc.cycle)         # ('x', 'y')
 ```
 
-Determinism: ready nodes are popped in ascending `key` order (default `(type name, repr)`), so shuffling the edge list does not change the order. Pass `key=` for domain ordering.
+A directed cycle has no canonical starting node, so both the diagram and the printed examples show the exact rotation this implementation returns for the given input order; any rotation describes the same cycle. Determinism: ready nodes are popped in ascending `key` order (default `(type name, repr)`), so shuffling the edge list does not change the order. Pass `key=` for domain ordering.
 
 ### CLI
 
@@ -53,7 +53,7 @@ echo '{"nodes":["b","a","c"],"edges":[["a","c"]]}' | python3 -m topo_witness -
 # {"order": ["a", "b", "c"], "cycle": null}
 
 echo '{"nodes":["a","b"],"edges":[["a","b"],["b","a"]]}' | python3 -m topo_witness -
-# {"order": null, "cycle": ["a", "b"]}   (exit 3)
+# {"order": null, "cycle": ["b", "a"]}   (exit 3)
 ```
 
 Exit `0` DAG, `3` cycle, `2` malformed input.
