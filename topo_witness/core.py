@@ -190,7 +190,9 @@ def verify_order(nodes: Iterable[T], edges: Iterable[tuple[T, T]], order: Sequen
         return problems
     index = {n: i for i, n in enumerate(order)}
     for u, v in edges:
-        if index[u] >= index[v]:
+        if u not in index or v not in index:
+            problems.append(f"edge {u!r} -> {v!r} references an undeclared node")
+        elif index[u] >= index[v]:
             problems.append(f"edge {u!r} -> {v!r} is violated")
     return problems
 

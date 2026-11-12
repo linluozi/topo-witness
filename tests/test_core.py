@@ -176,6 +176,7 @@ class Cycles(unittest.TestCase):
         self.assertTrue(verify_order(nodes, edges, ["b", "a"]))
         self.assertTrue(verify_order(nodes, edges, ["a"]))
         self.assertTrue(verify_order(nodes, edges, ["a", "b", "b"]))
+        self.assertTrue(verify_order(nodes, [("a", "z")], ["a", "b"]))
         self.assertEqual(verify_order(nodes, edges, ["a", "b"]), [])
 
     def test_acyclic_returns_none_cycle(self) -> None:
