@@ -46,7 +46,7 @@ layers = parallel_layers(
 try:
     toposort(["x", "y"], [("x", "y"), ("y", "x")])
 except CycleError as exc:
-    print(exc.cycle)         # ('x', 'y')
+    print(exc.cycle)         # ('y', 'x')
 ```
 
 A directed cycle has no canonical starting node, so both the diagram and the printed examples show the exact rotation this implementation returns for the given input order; any rotation describes the same cycle. Determinism: ready nodes are popped in ascending `key` order (default `(type name, repr)`), so shuffling the edge list does not change the order. Pass `key=` for domain ordering.

@@ -118,7 +118,7 @@ class Cycles(unittest.TestCase):
     def test_toposort_raises_with_witness(self) -> None:
         with self.assertRaises(CycleError) as ctx:
             toposort(["x", "y"], [("x", "y"), ("y", "x")])
-        self.assertEqual(set(ctx.exception.cycle), {"x", "y"})
+        self.assertEqual(ctx.exception.cycle, ("y", "x"))  # exact rotation printed in README
 
     def test_self_loop(self) -> None:
         order, cycle = toposort_or_cycle(["solo"], [("solo", "solo")])
