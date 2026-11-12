@@ -103,6 +103,10 @@ Result on 2026-11-12, CPython 3.12.3: **27 tests, OK, 0.24 s**.
 - The witness is chordless, not minimum-length; computing a shortest directed cycle would need a different algorithm.
 - Recursion-free by construction (iterative Kahn + predecessor walk), so very deep graphs are fine.
 
+## 本轮创新
+
+The cycle output is not just "a cycle": it is reduced to a **chordless witness** checked by a verifier that shares no code with the finder, and the README's literal examples are pinned by tests after an independent audit caught a rotation mismatch. `parallel_layers` / `verify_layers` extend the same independent-checker discipline to concurrency.
+
 ## License
 
 MIT. See `LICENSE`.
