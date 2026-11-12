@@ -38,6 +38,11 @@ print(order, cycle)          # None ('b', 'c', 'a')
 print(verify_cycle(["a", "b", "c", "d"], [("a", "b"), ("b", "c"), ("c", "a")], cycle))
 # []  -> the witness is valid and chordless
 
+layers = parallel_layers(
+    ["a", "b", "c", "d"], [("a", "b"), ("a", "c"), ("b", "d"), ("c", "d")]
+)
+# [['a'], ['b', 'c'], ['d']]  -> b and c can run concurrently
+
 try:
     toposort(["x", "y"], [("x", "y"), ("y", "x")])
 except CycleError as exc:
@@ -50,13 +55,22 @@ A directed cycle has no canonical starting node, so both the diagram and the pri
 
 ```bash
 echo '{"nodes":["b","a","c"],"edges":[["a","c"]]}' | python3 -m topo_witness -
-# {"order": ["a", "b", "c"], "cycle": null}
+# {"order": ["a", "b", "c"], "layers": null, "cycle": null}
+
+echo '{"nodes":["a","b","c","d"],"edges":[["a","b"],["a","c"],["b","d"],["c","d"]]}' | python3 -m topo_witness - --layers
+# {"order": null, "layers": [["a"], ["b", "c"], ["d"]], "cycle": null}
 
 echo '{"nodes":["a","b"],"edges":[["a","b"],["b","a"]]}' | python3 -m topo_witness -
-# {"order": null, "cycle": ["b", "a"]}   (exit 3)
+# {"order": null, "layers": null, "cycle": ["b", "a"]}   (exit 3)
 ```
 
 Exit `0` DAG, `3` cycle, `2` malformed input.
+
+## Parallel layers
+
+`parallel_layers(nodes, edges)` groups nodes into waves that can run concurrently: wave *k+1* holds nodes whose slowest predecessor is in wave *k*. Every edge goes from a strictly earlier wave to a later one, so nodes inside a layer are mutually independent. `verify_layers()` checks that property independently. Cycles raise `CycleError` with the same chordless witness.
+
+`toposort` and `parallel_layers` share the deterministic ready order; both are iterative, so a 5,000-node chain is fine.
 
 ## What "witness" means here
 
@@ -72,12 +86,14 @@ Exit `0` DAG, `3` cycle, `2` malformed input.
 python3 -m unittest discover -s tests -v
 ```
 
-Result on 2026-11-12, CPython 3.12.3: **20 tests, OK, 0.178 s**.
+Result on 2026-11-12, CPython 3.12.3: **27 tests, OK, 0.24 s**.
 
 - **300 seeded random DAGs** (n=1–30, random topological permutation, p=0.18 forward edges): every output contains each node once and satisfies every edge; verified both with `verify_order` and an independent position map. Seed `20261112`.
 - **200 seeded random cyclic graphs** (n=2–25, a random 2–10 node ring plus random extra edges): every witness passes `verify_cycle` **and** a separate test-side chord scan that does not call the implementation. Seed `424242`.
 - Edge-order invariance: 30 shuffles of both node and edge lists produce the identical order.
 - 5,000-node chain completes iteratively (no `RecursionError`) and matches the input order.
+- 300 seeded random DAGs are checked with `verify_layers` plus a direct `level[u] < level[v]` scan; a 200-node chain yields 200 singleton layers.
+- CLI `--layers` is covered end to end and its exact JSON matches the README example.
 - Self-loop, 2-cycle, chorded 3-cycle, duplicate nodes/edges, unknown endpoints, empty graph, and malformed CLI JSON are covered.
 - The chord-removal test starts from a 5-cycle with chord `0 -> 2` and asserts the witness is the 4-node `{0,2,3,4}` cycle with node 1 eliminated.
 

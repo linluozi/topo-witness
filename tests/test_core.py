@@ -11,9 +11,12 @@ from topo_witness import (
     GraphError,
     UnknownNodeError,
     find_cycle,
+    parallel_layers,
+    parallel_layers_or_cycle,
     toposort,
     toposort_or_cycle,
     verify_cycle,
+    verify_layers,
     verify_order,
 )
 
@@ -184,10 +187,57 @@ class Cycles(unittest.TestCase):
         self.assertIsNone(find_cycle(["a", "b"], [("a", "b")]))
 
 
+class Layers(unittest.TestCase):
+    def test_known_diamond(self) -> None:
+        nodes = ["a", "b", "c", "d"]
+        edges = [("a", "b"), ("a", "c"), ("b", "d"), ("c", "d")]
+        self.assertEqual(parallel_layers(nodes, edges), [["a"], ["b", "c"], ["d"]])
+        self.assertEqual(verify_layers(nodes, edges, [["a"], ["b", "c"], ["d"]]), [])
+
+    def test_isolated_nodes_are_layer_zero(self) -> None:
+        self.assertEqual(parallel_layers(["z", "a"], []), [["a", "z"]])
+        self.assertEqual(parallel_layers(["a", "b"], [("a", "b")]), [["a"], ["b"]])
+
+    def test_300_random_dags_are_valid_layers(self) -> None:
+        rng = random.Random(20261112)
+        for _ in range(300):
+            n = rng.randint(1, 30)
+            nodes, edges = random_dag(rng, n)
+            layers = parallel_layers(nodes, edges)
+            self.assertEqual(verify_layers(nodes, edges, layers), [])
+            level = {node: i for i, layer in enumerate(layers) for node in layer}
+            for u, v in edges:
+                self.assertLess(level[u], level[v])
+            self.assertEqual(len(layers[0]), len([x for x in nodes if all(x != v for _, v in edges)]))
+
+    def test_longest_chain_gives_one_node_per_layer(self) -> None:
+        n = 200
+        layers = parallel_layers(list(range(n)), [(i, i + 1) for i in range(n - 1)])
+        self.assertEqual(layers, [[i] for i in range(n)])
+
+    def test_cycle_raises_with_witness(self) -> None:
+        with self.assertRaises(CycleError) as ctx:
+            parallel_layers(["a", "b"], [("a", "b"), ("b", "a")])
+        self.assertEqual(set(ctx.exception.cycle), {"a", "b"})
+        layers, cycle = parallel_layers_or_cycle(["a", "b"], [("a", "b"), ("b", "a")])
+        self.assertIsNone(layers)
+        self.assertIsNotNone(cycle)
+
+    def test_verify_layers_rejects_bad_assignments(self) -> None:
+        nodes = ["a", "b"]
+        edges = [("a", "b")]
+        self.assertTrue(verify_layers(nodes, edges, [["a", "b"]]))       # same layer
+        self.assertTrue(verify_layers(nodes, edges, [["b"], ["a"]]))     # reversed
+        self.assertTrue(verify_layers(nodes, edges, [["a"]]))            # missing
+        self.assertTrue(verify_layers(nodes, edges, [["a", "a"], ["b"]]))  # repeat
+        self.assertTrue(verify_layers(nodes, [("a", "z")], [["a"], ["b"]]))
+        self.assertEqual(verify_layers(nodes, edges, [["a"], ["b"]]), [])
+
+
 class CLI(unittest.TestCase):
-    def run_cli(self, payload: str) -> subprocess.CompletedProcess[str]:
+    def run_cli(self, payload: str, extra: list[str] | None = None) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
-            [sys.executable, "-m", "topo_witness", "-"],
+            [sys.executable, "-m", "topo_witness", "-", *(extra or [])],
             input=payload,
             capture_output=True,
             text=True,
@@ -205,6 +255,16 @@ class CLI(unittest.TestCase):
         payload = json.loads(proc.stdout)
         self.assertIsNone(payload["order"])
         self.assertEqual(payload["cycle"], ["b", "a"])  # exact order printed in README
+
+    def test_layers_flag(self) -> None:
+        proc = self.run_cli(
+            json.dumps({"nodes": ["a", "b", "c", "d"], "edges": [["a", "b"], ["a", "c"], ["b", "d"], ["c", "d"]]}),
+            extra=["--layers"],
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        payload = json.loads(proc.stdout)
+        self.assertEqual(payload["layers"], [["a"], ["b", "c"], ["d"]])
+        self.assertIsNone(payload["order"])
 
     def test_bad_json_exit_two(self) -> None:
         self.assertEqual(self.run_cli("{oops").returncode, 2)

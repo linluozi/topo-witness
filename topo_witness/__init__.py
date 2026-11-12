@@ -5,9 +5,12 @@ from .core import (
     GraphError,
     UnknownNodeError,
     find_cycle,
+    parallel_layers,
+    parallel_layers_or_cycle,
     toposort,
     toposort_or_cycle,
     verify_cycle,
+    verify_layers,
     verify_order,
 )
 
@@ -21,4 +24,4 @@ __all__ = [
     "verify_cycle",
     "verify_order",
 ]
-__version__ = "0.1.0"
+__version__ = "0.2.0"

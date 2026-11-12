@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "topo-witness"
-version = "0.1.0"
+version = "0.2.0"
 description = "Deterministic topological sort with a chordless, independently verifiable cycle witness"
 readme = "README.md"
 requires-python = ">=3.9"

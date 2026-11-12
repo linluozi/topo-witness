@@ -117,6 +117,85 @@ def toposort_or_cycle(
     return None, _remove_chords(cycle, edge_set)
 
 
+def parallel_layers(
+    nodes: Iterable[T],
+    edges: Iterable[tuple[T, T]],
+    *,
+    key: Callable[[T], object] | None = None,
+) -> list[list[T]]:
+    """Group nodes into waves that can run concurrently.
+
+    Wave 0 is every node with no incoming edge; wave *k+1* contains nodes whose
+    predecessors are all in waves <= *k* and at least one is in wave *k*.  Every
+    edge therefore goes from a strictly earlier wave to a later one, so nodes
+    inside one layer are mutually independent.  Raises :class:`CycleError`.
+    """
+    layers, cycle = parallel_layers_or_cycle(nodes, edges, key=key)
+    if cycle is not None:
+        raise CycleError(cycle)
+    assert layers is not None
+    return layers
+
+
+def parallel_layers_or_cycle(
+    nodes: Iterable[T],
+    edges: Iterable[tuple[T, T]],
+    *,
+    key: Callable[[T], object] | None = None,
+) -> tuple[list[list[T]] | None, tuple[T, ...] | None]:
+    """Return ``(layers, None)`` for a DAG or ``(None, cycle)`` for a cycle."""
+    node_list, edge_set, succ, pred = _normalize(nodes, edges, key)
+    indegree = {n: len(pred[n]) for n in node_list}
+    ready = sorted((n for n in node_list if indegree[n] == 0), key=lambda n: _sort_key(n, key))
+
+    layers: list[list[T]] = []
+    placed = 0
+    while ready:
+        layers.append(ready)
+        placed += len(ready)
+        following: list[T] = []
+        for node in ready:
+            for nxt in succ[node]:
+                indegree[nxt] -= 1
+                if indegree[nxt] == 0:
+                    following.append(nxt)
+        ready = sorted(following, key=lambda n: _sort_key(n, key))
+
+    if placed == len(node_list):
+        return layers, None
+    remaining = {n for n in node_list if indegree[n] > 0}
+    cycle = _find_cycle(remaining, edge_set, pred, key)
+    return None, _remove_chords(cycle, edge_set)
+
+
+def verify_layers(
+    nodes: Iterable[T], edges: Iterable[tuple[T, T]], layers: Sequence[Sequence[T]]
+) -> list[str]:
+    """Independently check a layer assignment; [] means valid.
+
+    Requires: every declared node exactly once, and every edge going from an
+    earlier layer to a later one (so no edge lies inside a layer).
+    """
+    declared = list(dict.fromkeys(nodes))
+    problems: list[str] = []
+    flat = [node for layer in layers for node in layer]
+    if len(flat) != len(declared):
+        problems.append(f"layers contain {len(flat)} entries, expected {len(declared)}")
+    if len(set(flat)) != len(flat):
+        problems.append("layers repeat a node")
+    if set(flat) != set(declared):
+        problems.append("layers do not contain exactly the declared nodes")
+    if problems:
+        return problems
+    level = {node: i for i, layer in enumerate(layers) for node in layer}
+    for u, v in edges:
+        if u not in level or v not in level:
+            problems.append(f"edge {u!r} -> {v!r} references an undeclared node")
+        elif level[u] >= level[v]:
+            problems.append(f"edge {u!r} -> {v!r} does not go to a later layer")
+    return problems
+
+
 def find_cycle(
     nodes: Iterable[T], edges: Iterable[tuple[T, T]], *, key: Callable[[T], object] | None = None
 ) -> tuple[T, ...] | None:
