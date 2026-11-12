@@ -25,7 +25,7 @@ Python 3.9+, zero dependencies.
 ## Use
 
 ```python
-from topo_witness import CycleError, toposort, toposort_or_cycle, verify_cycle
+from topo_witness import CycleError, parallel_layers, toposort, toposort_or_cycle, verify_cycle
 
 order = toposort(["compile", "test", "deploy"], [("compile", "test"), ("test", "deploy")])
 # ['compile', 'test', 'deploy']
